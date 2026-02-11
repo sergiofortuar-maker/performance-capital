@@ -1,45 +1,26 @@
 import { NextResponse } from "next/server";
+import { XummSdk } from "xumm-sdk";
 
-// 🔥 IMPORTANTE: Forzar runtime Node para SDK blockchain
 export const runtime = "nodejs";
 
-export async function POST(req: Request) {
+export async function GET() {
   try {
-    // ⚠️ Aquí debes poner tu lógica real de creación de payload
-    // Ejemplo simulado (reemplaza por tu SDK real de Xaman)
-    const payload = await createXamanPayload();
+    const sdk = new XummSdk(
+      process.env.XUMM_API_KEY!,
+      process.env.XUMM_API_SECRET!
+    );
 
-    if (!payload) {
-      return NextResponse.json(
-        { error: "No payload returned" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      qr: payload.refs?.qr_png ?? null,
-      uuid: payload.uuid ?? null,
+    const payload = await sdk.payload.create({
+      TransactionType: "SignIn",
     });
 
-  } catch (error: any) {
-    console.error("Xaman connect error:", error);
+    return NextResponse.json({
+      uuid: payload.uuid,
+      qr: payload.refs.qr_png,
+    });
 
-    return NextResponse.json(
-      { error: error?.message || "Connect failed" },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Error creating payload" }, { status: 500 });
   }
-}
-
-/**
- * 🔹 Simulación temporal
- * Reemplaza esto por tu llamada real al SDK de Xaman
- */
-async function createXamanPayload() {
-  return {
-    uuid: "demo-uuid",
-    refs: {
-      qr_png: "https://dummyimage.com/300x300/000/fff"
-    }
-  };
 }
