@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 
-// 🔥 Forzamos runtime Node (importante para SDK blockchain)
 export const runtime = "nodejs";
 
 interface DepositPayload {
@@ -19,10 +18,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔹 Aquí debes poner tu llamada real al SDK de Xaman
-    const payload: DepositPayload | null = await createDepositPayload();
+    // Simulación temporal (reemplaza por tu SDK real)
+    const payload: DepositPayload | null = {
+      uuid: "demo-uuid"
+    };
 
-    // 🔥 PROTECCIÓN contra null (esto arregla el error de Vercel)
+    // 🔥 ESTA VALIDACIÓN ES LA CLAVE
     if (!payload || !payload.uuid) {
       return NextResponse.json(
         { error: "Invalid payload returned" },
@@ -30,7 +31,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Simulación de almacenamiento temporal
     const pendingDeposits: any[] = [];
 
     pendingDeposits.push({
@@ -52,14 +52,4 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
-}
-
-/**
- * 🔹 Función simulada temporal
- * Sustituye esto por tu llamada real al SDK de Xaman
- */
-async function createDepositPayload(): Promise<DepositPayload | null> {
-  return {
-    uuid: "demo-deposit-uuid"
-  };
 }
