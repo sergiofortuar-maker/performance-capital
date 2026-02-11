@@ -7,16 +7,15 @@ export default function Home() {
   const [uuid, setUuid] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // 🔥 1️⃣ Conectar billetera
+  // ================== CONNECT WALLET ==================
   async function connectWallet() {
     try {
       setLoading(true);
       setQr(null);
       setUuid(null);
 
-      const res = await fetch("/api/xaman/connect", {
-        method: "POST", // 🔥 MUY IMPORTANTE
-      });
+      // 🔥 IMPORTANTE: GET (sin method)
+      const res = await fetch("/api/xaman/connect");
 
       if (!res.ok) {
         throw new Error("Error al conectar");
@@ -34,14 +33,12 @@ export default function Home() {
     }
   }
 
-  // 🔥 2️⃣ Comprobar estado
+  // ================== CHECK STATUS ==================
   async function checkStatus() {
     if (!uuid) return;
 
     try {
-      const res = await fetch("/api/xaman/status", {
-        method: "GET", // Tu endpoint status usa GET
-      });
+      const res = await fetch("/api/xaman/status");
 
       if (!res.ok) return;
 
@@ -51,12 +48,13 @@ export default function Home() {
         localStorage.setItem("wallet", data.account);
         window.location.href = "/dashboard";
       }
-    } catch (err) {
-      console.error("Status error:", err);
+
+    } catch (error) {
+      console.error("Status error:", error);
     }
   }
 
-  // 🔁 Auto-check cada 2 segundos
+  // 🔁 AUTO CHECK CADA 2 SEGUNDOS
   useEffect(() => {
     if (!uuid || !qr) return;
 
@@ -82,7 +80,13 @@ export default function Home() {
       <button
         onClick={connectWallet}
         disabled={loading}
-        style={{ padding: "10px 16px", cursor: "pointer" }}
+        style={{
+          padding: "10px 16px",
+          cursor: "pointer",
+          background: "#222",
+          color: "#fff",
+          border: "1px solid #555",
+        }}
       >
         {loading ? "Conectando..." : "Conectar billetera (Xaman)"}
       </button>
