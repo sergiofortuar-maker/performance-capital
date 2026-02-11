@@ -25,8 +25,16 @@ export default function Dashboard() {
 
     setWallet(w);
 
-    fetch(`/api/user?wallet=${w}`)
-      .then((res) => res.json())
+    // 🔥 CORREGIDO AQUÍ
+    fetch("/api/xaman/user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ wallet: w }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("API error");
+        return res.json();
+      })
       .then((data) => {
         if (typeof data.balance === "number") {
           setBalance(data.balance);
@@ -56,6 +64,8 @@ export default function Dashboard() {
         }),
       });
 
+      if (!res.ok) throw new Error("Deposit failed");
+
       const data = await res.json();
 
       if (data.qr) {
@@ -64,7 +74,6 @@ export default function Dashboard() {
       } else {
         alert("Error creando depósito");
       }
-
     } catch (err) {
       console.error("Deposit error:", err);
       alert("Error creando depósito");
@@ -92,6 +101,8 @@ export default function Dashboard() {
         }),
       });
 
+      if (!res.ok) throw new Error("Withdraw failed");
+
       const data = await res.json();
 
       if (data.success) {
@@ -100,7 +111,6 @@ export default function Dashboard() {
       } else {
         alert("Error creando solicitud de retiro");
       }
-
     } catch (err) {
       console.error("Withdraw error:", err);
       alert("Error creando solicitud de retiro");
@@ -192,8 +202,7 @@ export default function Dashboard() {
 
       {withdrawRequested && (
         <p style={{ marginTop: 15, color: "#22c55e" }}>
-          ✔ Retiro solicitado correctamente. En 24–48 horas lo recibirás en tu
-          wallet.
+          ✔ Retiro solicitado correctamente. En 24–48 horas lo recibirás en tu wallet.
         </p>
       )}
 
