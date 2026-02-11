@@ -25,13 +25,9 @@ export default function Dashboard() {
 
     setWallet(w);
 
-    // 🔥 CORREGIDO AQUÍ
-    fetch("/api/xaman/user", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ wallet: w }),
-    })
-      .then(async (res) => {
+    // 🔥 AHORA USA GET (CORRECTO)
+    fetch(`/api/xaman/user?wallet=${w}`)
+      .then((res) => {
         if (!res.ok) throw new Error("API error");
         return res.json();
       })
@@ -43,6 +39,7 @@ export default function Dashboard() {
       .catch((err) => {
         console.error("Error loading user:", err);
       });
+
   }, []);
 
   const dailyGain = (balance * APR) / 365;
@@ -153,7 +150,6 @@ export default function Dashboard() {
 
       <hr style={{ borderColor: "#333", margin: "25px 0" }} />
 
-      {/* ================= DEPOSIT ================= */}
       <h3>Depositar XRP</h3>
 
       <input
@@ -181,7 +177,6 @@ export default function Dashboard() {
 
       <hr style={{ borderColor: "#333", margin: "30px 0" }} />
 
-      {/* ================= WITHDRAW ================= */}
       <h3>Retirar XRP</h3>
 
       <input
