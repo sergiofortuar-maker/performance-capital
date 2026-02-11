@@ -14,7 +14,6 @@ export default function Home() {
       setQr(null);
       setUuid(null);
 
-      // 🔥 IMPORTANTE: GET (sin method)
       const res = await fetch("/api/xaman/connect");
 
       if (!res.ok) {
@@ -38,7 +37,8 @@ export default function Home() {
     if (!uuid) return;
 
     try {
-      const res = await fetch("/api/xaman/status");
+      // 🔥 AHORA PASAMOS EL UUID
+      const res = await fetch(`/api/xaman/status?uuid=${uuid}`);
 
       if (!res.ok) return;
 
