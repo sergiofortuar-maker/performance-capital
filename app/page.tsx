@@ -7,7 +7,7 @@ export default function Home() {
   const [uuid, setUuid] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // 1️⃣ Conectar billetera (crear QR)
+  // 🔥 1️⃣ Conectar billetera
   async function connectWallet() {
     try {
       setLoading(true);
@@ -15,7 +15,7 @@ export default function Home() {
       setUuid(null);
 
       const res = await fetch("/api/xaman/connect", {
-        method: "POST", // 🔥 ESTA ES LA CLAVE
+        method: "POST", // 🔥 MUY IMPORTANTE
       });
 
       if (!res.ok) {
@@ -34,13 +34,13 @@ export default function Home() {
     }
   }
 
-  // 2️⃣ Comprobar estado de la firma
+  // 🔥 2️⃣ Comprobar estado
   async function checkStatus() {
     if (!uuid) return;
 
     try {
       const res = await fetch("/api/xaman/status", {
-        method: "GET", // 🔥 Tu backend status usa GET
+        method: "GET", // Tu endpoint status usa GET
       });
 
       if (!res.ok) return;
@@ -56,7 +56,7 @@ export default function Home() {
     }
   }
 
-  // 🔁 AUTO-CHECK cada 2 segundos mientras haya QR
+  // 🔁 Auto-check cada 2 segundos
   useEffect(() => {
     if (!uuid || !qr) return;
 
