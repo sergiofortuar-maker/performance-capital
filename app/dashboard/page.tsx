@@ -17,6 +17,7 @@ export default function Dashboard() {
   // ===================== LOAD USER =====================
   useEffect(() => {
     const w = localStorage.getItem("wallet");
+
     if (!w) {
       window.location.href = "/";
       return;
@@ -24,16 +25,15 @@ export default function Dashboard() {
 
     setWallet(w);
 
-    fetch("/api/xaman/user", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ wallet: w }),
-    })
+    fetch(`/api/user?wallet=${w}`)
       .then((res) => res.json())
       .then((data) => {
         if (typeof data.balance === "number") {
           setBalance(data.balance);
         }
+      })
+      .catch((err) => {
+        console.error("Error loading user:", err);
       });
   }, []);
 
@@ -46,28 +46,35 @@ export default function Dashboard() {
     setDepositQr(null);
     setWithdrawRequested(false);
 
-    const res = await fetch("/api/xaman/deposit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        amount: depositAmount,
-        wallet, // 👈 clave
-      }),
-    });
+    try {
+      const res = await fetch("/api/xaman/deposit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: depositAmount,
+          wallet,
+        }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (data.qr) {
-      setDepositQr(data.qr);
-      setDepositAmount("");
-    } else {
+      if (data.qr) {
+        setDepositQr(data.qr);
+        setDepositAmount("");
+      } else {
+        alert("Error creando depósito");
+      }
+
+    } catch (err) {
+      console.error("Deposit error:", err);
       alert("Error creando depósito");
     }
   }
 
-  // ===================== WITHDRAW (MANUAL) =====================
+  // ===================== WITHDRAW =====================
   async function requestWithdrawXrp() {
     if (!withdrawAmount || Number(withdrawAmount) <= 0 || !wallet) return;
+
     if (Number(withdrawAmount) > balance) {
       alert("No tienes balance suficiente");
       return;
@@ -75,21 +82,27 @@ export default function Dashboard() {
 
     setWithdrawRequested(false);
 
-    const res = await fetch("/api/xaman/withdraw/request", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        wallet,
-        amount: withdrawAmount,
-      }),
-    });
+    try {
+      const res = await fetch("/api/xaman/withdraw/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wallet,
+          amount: withdrawAmount,
+        }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (data.success) {
-      setWithdrawRequested(true);
-      setWithdrawAmount("");
-    } else {
+      if (data.success) {
+        setWithdrawRequested(true);
+        setWithdrawAmount("");
+      } else {
+        alert("Error creando solicitud de retiro");
+      }
+
+    } catch (err) {
+      console.error("Withdraw error:", err);
       alert("Error creando solicitud de retiro");
     }
   }
@@ -132,6 +145,7 @@ export default function Dashboard() {
 
       {/* ================= DEPOSIT ================= */}
       <h3>Depositar XRP</h3>
+
       <input
         type="number"
         placeholder="Cantidad XRP"
@@ -145,6 +159,7 @@ export default function Dashboard() {
           marginRight: 10,
         }}
       />
+
       <button onClick={depositXrp}>Depositar</button>
 
       {depositQr && (
@@ -158,6 +173,7 @@ export default function Dashboard() {
 
       {/* ================= WITHDRAW ================= */}
       <h3>Retirar XRP</h3>
+
       <input
         type="number"
         placeholder="Cantidad XRP"
@@ -171,12 +187,13 @@ export default function Dashboard() {
           marginRight: 10,
         }}
       />
+
       <button onClick={requestWithdrawXrp}>Solicitar retiro</button>
 
       {withdrawRequested && (
         <p style={{ marginTop: 15, color: "#22c55e" }}>
           ✔ Retiro solicitado correctamente. En 24–48 horas lo recibirás en tu
-          wallet. Gracias.
+          wallet.
         </p>
       )}
 
