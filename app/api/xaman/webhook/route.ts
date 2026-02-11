@@ -1,29 +1,31 @@
 import { NextResponse } from "next/server";
 import { pendingDeposits } from "@/lib/pendingDeposits";
-import { getUser, updateUser } from "@/lib/userStore";
+import { getUserData, updateUserData } from "@/lib/userStore";
 
 export async function POST(req: Request) {
   const body = await req.json();
 
-  const uuid = body.payload_uuidv4;
-  const resolved = body.payload?.meta?.resolved;
-  const success = body.payload?.meta?.signed === true;
+  const txHash = body?.payload?.txid;
 
-  if (!resolved || !success) {
-    return NextResponse.json({ ok: true });
+  if (!txHash) {
+    return NextResponse.json({ error: "No txHash" }, { status: 400 });
   }
 
-  const deposit = pendingDeposits.find(d => d.uuid === uuid);
-  if (!deposit) return NextResponse.json({ ok: true });
+  const deposit = pendingDeposits[txHash];
 
-  const user = getUser(deposit.wallet);
-  user.balance += deposit.amount;
-  user.totalDeposited += deposit.amount;
-  updateUser(user);
+  if (!deposit) {
+    return NextResponse.json({ error: "Deposit not found" }, { status: 404 });
+  }
 
-  // eliminar pendiente
-  const index = pendingDeposits.indexOf(deposit);
-  pendingDeposits.splice(index, 1);
+  const { wallet, amount } = deposit;
 
-  return NextResponse.json({ ok: true });
+  const user = getUserData(wallet);
+
+  updateUserData(wallet, {
+    balance: user.balance + amount,
+  });
+
+  delete pendingDeposits[txHash];
+
+  return NextResponse.json({ success: true });
 }

@@ -1,40 +1,29 @@
 import { NextResponse } from "next/server";
-import { getUser, updateUser } from "@/lib/userStore";
-import { addWithdraw } from "@/lib/withdrawStore";
-import { applyDailyYield } from "@/lib/yield";
+import { getUserData, updateUserData } from "@/lib/userStore";
 
 export async function POST(req: Request) {
-  try {
-    const { wallet, amount } = await req.json();
+  const body = await req.json();
+  const { wallet, amount } = body;
 
-    if (!wallet || !amount || Number(amount) <= 0) {
-      return NextResponse.json({ success: false });
-    }
-
-    const user = applyDailyYield(wallet);
-
-    if (user.balance <= 0) {
-      return NextResponse.json({
-        success: false,
-        error: "No has realizado ningún depósito",
-      });
-    }
-
-    if (user.balance < Number(amount)) {
-      return NextResponse.json({
-        success: false,
-        error: "Saldo insuficiente",
-      });
-    }
-
-    user.balance -= Number(amount);
-    user.totalWithdrawn += Number(amount);
-    updateUser(user);
-
-    addWithdraw(wallet, Number(amount));
-
-    return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ success: false });
+  if (!wallet || !amount) {
+    return NextResponse.json(
+      { error: "Wallet and amount required" },
+      { status: 400 }
+    );
   }
+
+  const user = getUserData(wallet);
+
+  if (user.balance < amount) {
+    return NextResponse.json(
+      { error: "Insufficient balance" },
+      { status: 400 }
+    );
+  }
+
+  updateUserData(wallet, {
+    balance: user.balance - amount,
+  });
+
+  return NextResponse.json({ success: true });
 }
