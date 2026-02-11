@@ -12,6 +12,7 @@
     "next": "16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "xumm": "^1.0.0",
     "xumm-sdk": "^1.11.2"
   },
   "devDependencies": {
