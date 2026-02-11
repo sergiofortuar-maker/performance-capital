@@ -1,49 +1,45 @@
 import { NextResponse } from "next/server";
+import { XummSdk } from "xumm-sdk";
 
 export const runtime = "nodejs";
 
-interface StatusPayload {
-  meta?: {
-    signed?: boolean;
-    cancelled?: boolean;
-  };
-  response?: {
-    account?: string;
-  };
-}
-
 export async function GET(req: Request) {
   try {
-    // 🔹 Simulación temporal (reemplaza por tu SDK real)
-    const payload: StatusPayload | null = {
-      meta: {
-        signed: true,
-        cancelled: false,
-      },
-      response: {
-        account: "rDemoWalletAddress",
-      },
-    };
+    const { searchParams } = new URL(req.url);
+    const uuid = searchParams.get("uuid");
 
-    // 🔥 Protección contra null
-    if (!payload) {
+    if (!uuid) {
       return NextResponse.json(
-        { error: "Payload is null" },
-        { status: 500 }
+        { error: "UUID requerido" },
+        { status: 400 }
+      );
+    }
+
+    const sdk = new XummSdk(
+      process.env.XUMM_API_KEY!,
+      process.env.XUMM_API_SECRET!
+    );
+
+    const result = await sdk.payload.get(uuid);
+
+    if (!result) {
+      return NextResponse.json(
+        { error: "Payload no encontrado" },
+        { status: 404 }
       );
     }
 
     return NextResponse.json({
-      signed: payload.meta?.signed ?? false,
-      cancelled: payload.meta?.cancelled ?? false,
-      account: payload.response?.account ?? null,
+      signed: result.meta?.signed ?? false,
+      cancelled: result.meta?.cancelled ?? false,
+      account: result.response?.account ?? null,
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("Status error:", error);
 
     return NextResponse.json(
-      { error: error?.message || "Status check failed" },
+      { error: "Error verificando estado" },
       { status: 500 }
     );
   }
