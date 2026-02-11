@@ -14,13 +14,23 @@ export async function GET() {
       TransactionType: "SignIn",
     });
 
+    if (!payload || !payload.uuid) {
+      return NextResponse.json(
+        { error: "Payload creation failed" },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
       uuid: payload.uuid,
-      qr: payload.refs.qr_png,
+      qr: payload.refs?.qr_png ?? null,
     });
 
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Error creating payload" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Error creating payload" },
+      { status: 500 }
+    );
   }
 }
