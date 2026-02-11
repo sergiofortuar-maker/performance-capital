@@ -9,33 +9,50 @@ export default function Home() {
 
   // 1️⃣ Conectar billetera (crear QR)
   async function connectWallet() {
-    setLoading(true);
-    setQr(null);
-    setUuid(null);
+    try {
+      setLoading(true);
+      setQr(null);
+      setUuid(null);
 
-    const res = await fetch("/api/xaman/connect");
-    const data = await res.json();
+      const res = await fetch("/api/xaman/connect", {
+        method: "POST", // 🔥 ESTA ES LA CLAVE
+      });
 
-    setQr(data.qr);
-    setUuid(data.uuid);
-    setLoading(false);
+      if (!res.ok) {
+        throw new Error("Error al conectar");
+      }
+
+      const data = await res.json();
+
+      setQr(data.qr);
+      setUuid(data.uuid);
+
+    } catch (error) {
+      console.error("Connect error:", error);
+    } finally {
+      setLoading(false);
+    }
   }
 
   // 2️⃣ Comprobar estado de la firma
   async function checkStatus() {
     if (!uuid) return;
 
-    const res = await fetch("/api/xaman/status", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uuid }),
-    });
+    try {
+      const res = await fetch("/api/xaman/status", {
+        method: "GET", // 🔥 Tu backend status usa GET
+      });
 
-    const data = await res.json();
+      if (!res.ok) return;
 
-    if (data.signed && data.account) {
-      localStorage.setItem("wallet", data.account);
-      window.location.href = "/dashboard";
+      const data = await res.json();
+
+      if (data.signed && data.account) {
+        localStorage.setItem("wallet", data.account);
+        window.location.href = "/dashboard";
+      }
+    } catch (err) {
+      console.error("Status error:", err);
     }
   }
 
