@@ -7,17 +7,14 @@ export default function Dashboard() {
   const [balance, setBalance] = useState(0);
 
   const [depositAmount, setDepositAmount] = useState("");
-  const [withdrawAmount, setWithdrawAmount] = useState("");
-
   const [depositQr, setDepositQr] = useState<string | null>(null);
-  const [withdrawRequested, setWithdrawRequested] = useState(false);
+  const [depositUuid, setDepositUuid] = useState<string | null>(null);
 
   const APR = 0.08;
 
-  // ===================== LOAD USER =====================
+  // ================= LOAD USER =================
   useEffect(() => {
     const w = localStorage.getItem("wallet");
-
     if (!w) {
       window.location.href = "/";
       return;
@@ -25,94 +22,71 @@ export default function Dashboard() {
 
     setWallet(w);
 
-    // 🔥 AHORA USA GET (CORRECTO)
     fetch(`/api/xaman/user?wallet=${w}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("API error");
-        return res.json();
-      })
+      .then((res) => res.json())
       .then((data) => {
         if (typeof data.balance === "number") {
           setBalance(data.balance);
         }
-      })
-      .catch((err) => {
-        console.error("Error loading user:", err);
       });
-
   }, []);
 
   const dailyGain = (balance * APR) / 365;
 
-  // ===================== DEPOSIT =====================
+  // ================= DEPOSIT =================
   async function depositXrp() {
-    if (!depositAmount || Number(depositAmount) <= 0 || !wallet) return;
+    if (!wallet || !depositAmount) return;
 
-    setDepositQr(null);
-    setWithdrawRequested(false);
+    const res = await fetch("/api/xaman/deposit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        wallet,
+        amount: depositAmount,
+      }),
+    });
 
-    try {
-      const res = await fetch("/api/xaman/deposit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: depositAmount,
-          wallet,
-        }),
-      });
+    const data = await res.json();
 
-      if (!res.ok) throw new Error("Deposit failed");
-
-      const data = await res.json();
-
-      if (data.qr) {
-        setDepositQr(data.qr);
-        setDepositAmount("");
-      } else {
-        alert("Error creando depósito");
-      }
-    } catch (err) {
-      console.error("Deposit error:", err);
+    if (data.qr && data.uuid) {
+      setDepositQr(data.qr);
+      setDepositUuid(data.uuid);
+    } else {
       alert("Error creando depósito");
     }
   }
 
-  // ===================== WITHDRAW =====================
-  async function requestWithdrawXrp() {
-    if (!withdrawAmount || Number(withdrawAmount) <= 0 || !wallet) return;
+  // ================= AUTO CHECK STATUS =================
+  useEffect(() => {
+    if (!depositUuid || !wallet) return;
 
-    if (Number(withdrawAmount) > balance) {
-      alert("No tienes balance suficiente");
-      return;
-    }
-
-    setWithdrawRequested(false);
-
-    try {
-      const res = await fetch("/api/xaman/withdraw/request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          wallet,
-          amount: withdrawAmount,
-        }),
-      });
-
-      if (!res.ok) throw new Error("Withdraw failed");
-
+    const interval = setInterval(async () => {
+      const res = await fetch(`/api/xaman/status?uuid=${depositUuid}`);
       const data = await res.json();
 
-      if (data.success) {
-        setWithdrawRequested(true);
-        setWithdrawAmount("");
-      } else {
-        alert("Error creando solicitud de retiro");
+      if (data.signed && data.account) {
+        clearInterval(interval);
+
+        // 🔥 CONFIRMAMOS DEPÓSITO
+        const confirmRes = await fetch("/api/xaman/deposit/confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ wallet }),
+        });
+
+        const confirmData = await confirmRes.json();
+
+        if (confirmData.success) {
+          setBalance(confirmData.newBalance);
+          setDepositQr(null);
+          setDepositUuid(null);
+          alert("Depósito confirmado y balance actualizado");
+        }
       }
-    } catch (err) {
-      console.error("Withdraw error:", err);
-      alert("Error creando solicitud de retiro");
-    }
-  }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [depositUuid, wallet]);
 
   function disconnectWallet() {
     localStorage.clear();
@@ -120,50 +94,26 @@ export default function Dashboard() {
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#000",
-        color: "#fff",
-        padding: 40,
-        fontFamily: "Arial",
-      }}
-    >
+    <main style={{ minHeight: "100vh", background: "#000", color: "#fff", padding: 40 }}>
       <h1>Dashboard · XRP Earn</h1>
 
-      <p>
-        <strong>Wallet:</strong>
-        <br />
-        {wallet}
-      </p>
+      <p><strong>Wallet:</strong><br />{wallet}</p>
 
-      <hr style={{ borderColor: "#333", margin: "20px 0" }} />
+      <hr />
 
-      <p>
-        <strong>Balance:</strong>
-      </p>
       <h2>{balance.toFixed(6)} XRP</h2>
-
       <p style={{ color: "lime" }}>
         Ganancia diaria estimada (8% APY): +{dailyGain.toFixed(6)} XRP
       </p>
 
-      <hr style={{ borderColor: "#333", margin: "25px 0" }} />
+      <hr />
 
       <h3>Depositar XRP</h3>
 
       <input
         type="number"
-        placeholder="Cantidad XRP"
         value={depositAmount}
         onChange={(e) => setDepositAmount(e.target.value)}
-        style={{
-          padding: 6,
-          background: "#111",
-          color: "#fff",
-          border: "1px solid #555",
-          marginRight: 10,
-        }}
       />
 
       <button onClick={depositXrp}>Depositar</button>
@@ -175,50 +125,11 @@ export default function Dashboard() {
         </div>
       )}
 
-      <hr style={{ borderColor: "#333", margin: "30px 0" }} />
+      <hr />
 
-      <h3>Retirar XRP</h3>
-
-      <input
-        type="number"
-        placeholder="Cantidad XRP"
-        value={withdrawAmount}
-        onChange={(e) => setWithdrawAmount(e.target.value)}
-        style={{
-          padding: 6,
-          background: "#111",
-          color: "#fff",
-          border: "1px solid #555",
-          marginRight: 10,
-        }}
-      />
-
-      <button onClick={requestWithdrawXrp}>Solicitar retiro</button>
-
-      {withdrawRequested && (
-        <p style={{ marginTop: 15, color: "#22c55e" }}>
-          ✔ Retiro solicitado correctamente. En 24–48 horas lo recibirás en tu wallet.
-        </p>
-      )}
-
-      <hr style={{ borderColor: "#333", margin: "30px 0" }} />
-
-      <button
-        onClick={disconnectWallet}
-        style={{
-          padding: "8px 14px",
-          background: "#222",
-          color: "#fff",
-          border: "1px solid #555",
-          cursor: "pointer",
-        }}
-      >
+      <button onClick={disconnectWallet}>
         Desconectar billetera
       </button>
-
-      <p style={{ marginTop: 20, fontSize: 12, color: "#aaa" }}>
-        * Ganancias estimadas. No garantizadas.
-      </p>
     </main>
   );
 }
