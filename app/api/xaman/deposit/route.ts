@@ -1,54 +1,56 @@
 import { NextResponse } from "next/server";
+import { XummSdk } from "xumm-sdk";
 
 export const runtime = "nodejs";
 
-interface DepositPayload {
-  uuid: string;
-}
-
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { wallet, amount } = body;
+    const { wallet, amount } = await req.json();
 
     if (!wallet || !amount) {
       return NextResponse.json(
-        { error: "Missing wallet or amount" },
+        { error: "Wallet y amount requeridos" },
         { status: 400 }
       );
     }
 
-    // Simulación temporal (reemplaza por tu SDK real)
-    const payload: DepositPayload | null = {
-      uuid: "demo-uuid"
-    };
-
-    // 🔥 ESTA VALIDACIÓN ES LA CLAVE
-    if (!payload || !payload.uuid) {
+    if (!process.env.XRP_DESTINATION) {
       return NextResponse.json(
-        { error: "Invalid payload returned" },
+        { error: "XRP_DESTINATION no configurado" },
         { status: 500 }
       );
     }
 
-    const pendingDeposits: any[] = [];
+    const sdk = new XummSdk(
+      process.env.XUMM_API_KEY!,
+      process.env.XUMM_API_SECRET!
+    );
 
-    pendingDeposits.push({
-      uuid: payload.uuid,
-      wallet,
-      amount: Number(amount),
+    const drops = Math.floor(Number(amount) * 1000000).toString();
+
+    const payload = await sdk.payload.create({
+      TransactionType: "Payment",
+      Destination: process.env.XRP_DESTINATION,
+      Amount: drops,
     });
+
+    if (!payload?.uuid) {
+      return NextResponse.json(
+        { error: "Error creando depósito" },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
-      success: true,
       uuid: payload.uuid,
+      qr: payload.refs?.qr_png ?? null,
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("Deposit error:", error);
 
     return NextResponse.json(
-      { error: error?.message || "Deposit failed" },
+      { error: "Error creando depósito" },
       { status: 500 }
     );
   }
