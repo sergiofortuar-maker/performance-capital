@@ -15,6 +15,7 @@ export default function Dashboard() {
   // ================= LOAD USER =================
   useEffect(() => {
     const w = localStorage.getItem("wallet");
+
     if (!w) {
       window.location.href = "/";
       return;
@@ -33,7 +34,7 @@ export default function Dashboard() {
 
   const dailyGain = (balance * APR) / 365;
 
-  // ================= DEPOSIT =================
+  // ================= CREATE DEPOSIT =================
   async function depositXrp() {
     if (!wallet || !depositAmount) return;
 
@@ -56,32 +57,46 @@ export default function Dashboard() {
     }
   }
 
-  // ================= AUTO CHECK STATUS =================
+  // ================= AUTO LISTEN =================
   useEffect(() => {
     if (!depositUuid || !wallet) return;
 
     const interval = setInterval(async () => {
-      const res = await fetch(`/api/xaman/status?uuid=${depositUuid}`);
-      const data = await res.json();
+      try {
+        const res = await fetch(
+          `/api/xaman/status?uuid=${depositUuid}`
+        );
 
-      if (data.signed && data.account) {
-        clearInterval(interval);
+        const data = await res.json();
 
-        // 🔥 CONFIRMAMOS DEPÓSITO
-        const confirmRes = await fetch("/api/xaman/deposit/confirm", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ wallet }),
-        });
+        if (data.signed) {
+          clearInterval(interval);
 
-        const confirmData = await confirmRes.json();
+          // 🔥 CONFIRMAMOS CON UUID
+          const confirmRes = await fetch(
+            "/api/xaman/deposit/confirm",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                wallet,
+                uuid: depositUuid,
+              }),
+            }
+          );
 
-        if (confirmData.success) {
-          setBalance(confirmData.newBalance);
-          setDepositQr(null);
-          setDepositUuid(null);
-          alert("Depósito confirmado y balance actualizado");
+          const confirmData = await confirmRes.json();
+
+          if (confirmData.success) {
+            setBalance(confirmData.newBalance);
+            setDepositQr(null);
+            setDepositUuid(null);
+            setDepositAmount("");
+            alert("Depósito confirmado y balance actualizado");
+          }
         }
+      } catch (err) {
+        console.error("Auto confirm error:", err);
       }
     }, 3000);
 
@@ -94,14 +109,26 @@ export default function Dashboard() {
   }
 
   return (
-    <main style={{ minHeight: "100vh", background: "#000", color: "#fff", padding: 40 }}>
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "#000",
+        color: "#fff",
+        padding: 40,
+      }}
+    >
       <h1>Dashboard · XRP Earn</h1>
 
-      <p><strong>Wallet:</strong><br />{wallet}</p>
+      <p>
+        <strong>Wallet:</strong>
+        <br />
+        {wallet}
+      </p>
 
       <hr />
 
       <h2>{balance.toFixed(6)} XRP</h2>
+
       <p style={{ color: "lime" }}>
         Ganancia diaria estimada (8% APY): +{dailyGain.toFixed(6)} XRP
       </p>
@@ -112,6 +139,7 @@ export default function Dashboard() {
 
       <input
         type="number"
+        placeholder="Cantidad XRP"
         value={depositAmount}
         onChange={(e) => setDepositAmount(e.target.value)}
       />
