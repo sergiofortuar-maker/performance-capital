@@ -5,11 +5,7 @@ const APY = 0.08;
 export function applyDailyYield(wallet: string) {
   const user = getUserData(wallet);
 
-  // 🔥 Protección por si el usuario no existe
-  if (!user) {
-    console.warn("User not found for wallet:", wallet);
-    return;
-  }
+  if (!user) return;
 
   const now = Date.now();
   const last = user.lastInterestUpdate ?? now;
