@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+export const runtime = "nodejs";
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -12,7 +14,6 @@ export async function GET(req: Request) {
       );
     }
 
-    // 🔥 TEMP: devolver usuario fijo
     return NextResponse.json({
       wallet,
       balance: 0,
