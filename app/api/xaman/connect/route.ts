@@ -1,27 +1,24 @@
 import { NextResponse } from "next/server";
-import { XummSdk } from "xumm-sdk";
 
-const xumm = new XummSdk(
-  process.env.XUMM_API_KEY!,
-  process.env.XUMM_API_SECRET!
-);
-
-export async function GET() {
+export async function POST(req: Request) {
   try {
-    const payload = await xumm.payload.create({
-      txjson: {
-        TransactionType: "SignIn"
-      }
-    });
+    const payload = await someFunction(); // tu llamada real
+
+    if (!payload) {
+      return NextResponse.json(
+        { error: "No payload returned" },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
-      qr: payload.refs.qr_png,
-      uuid: payload.uuid
+      qr: payload.refs?.qr_png || null,
+      uuid: payload.uuid || null,
     });
+
   } catch (error) {
-    console.error("XAMAN CONNECT ERROR:", error);
     return NextResponse.json(
-      { error: "Error conectando billetera" },
+      { error: "Connect failed" },
       { status: 500 }
     );
   }
