@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getUserData } from "@/lib/userStore";
 
 export async function GET(req: Request) {
   try {
@@ -13,12 +12,11 @@ export async function GET(req: Request) {
       );
     }
 
-    const user = getUserData(wallet);
-
+    // 🔥 TEMP: devolver usuario fijo
     return NextResponse.json({
-      wallet: user.wallet,
-      balance: user.balance,
-      lastInterestUpdate: user.lastInterestUpdate,
+      wallet,
+      balance: 0,
+      lastInterestUpdate: Date.now(),
     });
 
   } catch (e) {
