@@ -3,14 +3,13 @@ import { XummSdk } from "xumm-sdk";
 
 export const runtime = "nodejs";
 
-export async function GET(req: Request) {
+export async function POST(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-    const uuid = searchParams.get("uuid");
+    const { wallet, amount } = await req.json();
 
-    if (!uuid) {
+    if (!wallet || !amount) {
       return NextResponse.json(
-        { error: "UUID requerido" },
+        { error: "Wallet y amount requeridos" },
         { status: 400 }
       );
     }
@@ -20,26 +19,28 @@ export async function GET(req: Request) {
       process.env.XUMM_API_SECRET!
     );
 
-    const result = await sdk.payload.get(uuid);
+    const payload = await sdk.payload.create({
+      TransactionType: "Payment",
+      Destination: process.env.XRP_DESTINATION!,
+      Amount: (Number(amount) * 1_000_000).toString(), // XRP → drops
+    });
 
-    if (!result) {
+    if (!payload?.uuid) {
       return NextResponse.json(
-        { error: "Payload no encontrado" },
-        { status: 404 }
+        { error: "Payload failed" },
+        { status: 500 }
       );
     }
 
     return NextResponse.json({
-      signed: result.meta?.signed ?? false,
-      cancelled: result.meta?.cancelled ?? false,
-      account: result.response?.account ?? null,
+      uuid: payload.uuid,
+      qr: payload.refs?.qr_png ?? null,
     });
 
   } catch (error) {
-    console.error("Status error:", error);
-
+    console.error("Deposit error:", error);
     return NextResponse.json(
-      { error: "Error verificando estado" },
+      { error: "Error creando depósito" },
       { status: 500 }
     );
   }
