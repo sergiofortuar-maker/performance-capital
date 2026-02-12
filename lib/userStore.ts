@@ -1,10 +1,11 @@
-let memoryStore: Record<string, any> = {};
-
-type User = {
+export type User = {
   wallet: string;
   balance: number;
   lastInterestUpdate: number;
+  lastProcessedTx?: string;
 };
+
+const memoryStore: Record<string, User> = {};
 
 export function getUserData(wallet: string): User {
   if (!memoryStore[wallet]) {
@@ -18,7 +19,7 @@ export function getUserData(wallet: string): User {
   return memoryStore[wallet];
 }
 
-export function updateUserData(wallet: string, data: Partial<User>) {
+export function updateUserData(wallet: string, data: Partial<User>): void {
   if (!memoryStore[wallet]) {
     memoryStore[wallet] = {
       wallet,
