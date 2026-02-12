@@ -1,163 +1,89 @@
-"use client";
+import { NextResponse } from "next/server";
+import { XummSdk } from "xumm-sdk";
+import { getUserData, updateUserData } from "@/lib/userStore";
 
-import { useEffect, useState } from "react";
+export const runtime = "nodejs";
 
-export default function Dashboard() {
-  const [wallet, setWallet] = useState<string | null>(null);
-  const [balance, setBalance] = useState(0);
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const wallet: string = body.wallet;
+    const uuid: string = body.uuid;
 
-  const [depositAmount, setDepositAmount] = useState("");
-  const [depositQr, setDepositQr] = useState<string | null>(null);
-  const [depositUuid, setDepositUuid] = useState<string | null>(null);
-
-  const APR = 0.08;
-
-  // ================= LOAD USER =================
-  useEffect(() => {
-    const w = localStorage.getItem("wallet");
-
-    if (!w) {
-      window.location.href = "/";
-      return;
+    if (!wallet || !uuid) {
+      return NextResponse.json(
+        { error: "Wallet y UUID requeridos" },
+        { status: 400 }
+      );
     }
 
-    setWallet(w);
+    const sdk = new XummSdk(
+      process.env.XUMM_API_KEY as string,
+      process.env.XUMM_API_SECRET as string
+    );
 
-    fetch(`/api/xaman/user?wallet=${w}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (typeof data.balance === "number") {
-          setBalance(data.balance);
-        }
-      });
-  }, []);
+    const payload: any = await sdk.payload.get(uuid);
 
-  const dailyGain = (balance * APR) / 365;
+    if (!payload?.meta?.signed || !payload?.meta?.resolved) {
+      return NextResponse.json(
+        { error: "Transacción no firmada o no validada" },
+        { status: 400 }
+      );
+    }
 
-  // ================= CREATE DEPOSIT =================
-  async function depositXrp() {
-    if (!wallet || !depositAmount) return;
+    const tx: any = payload.response;
 
-    const res = await fetch("/api/xaman/deposit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        wallet,
-        amount: depositAmount,
-      }),
+    if (!tx) {
+      return NextResponse.json(
+        { error: "No hay respuesta de transacción" },
+        { status: 400 }
+      );
+    }
+
+    if (tx.Destination !== process.env.XRP_DESTINATION) {
+      return NextResponse.json(
+        { error: "Destino inválido" },
+        { status: 400 }
+      );
+    }
+
+    let drops = 0;
+
+    if (typeof tx.delivered_amount === "string") {
+      drops = Number(tx.delivered_amount);
+    } else if (typeof payload?.meta?.delivered_amount === "string") {
+      drops = Number(payload.meta.delivered_amount);
+    }
+
+    if (!drops || drops <= 0) {
+      return NextResponse.json(
+        { error: "Amount inválido o no entregado" },
+        { status: 400 }
+      );
+    }
+
+    const deliveredXrp = drops / 1_000_000;
+
+    const user = getUserData(wallet);
+
+    const newBalance = user.balance + deliveredXrp;
+
+    updateUserData(wallet, {
+      balance: newBalance,
+      lastInterestUpdate: Date.now(),
     });
 
-    const data = await res.json();
+    return NextResponse.json({
+      success: true,
+      newBalance,
+    });
 
-    if (data.qr && data.uuid) {
-      setDepositQr(data.qr);
-      setDepositUuid(data.uuid);
-    } else {
-      alert("Error creando depósito");
-    }
+  } catch (error) {
+    console.error("Confirm deposit error:", error);
+
+    return NextResponse.json(
+      { error: "Error confirmando depósito" },
+      { status: 500 }
+    );
   }
-
-  // ================= AUTO LISTEN =================
-  useEffect(() => {
-    if (!depositUuid || !wallet) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(
-          `/api/xaman/status?uuid=${depositUuid}`
-        );
-
-        const data = await res.json();
-
-        if (data.signed) {
-          clearInterval(interval);
-
-          // 🔥 CONFIRMAMOS CON UUID
-          const confirmRes = await fetch(
-            "/api/xaman/deposit/confirm",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                wallet,
-                uuid: depositUuid,
-              }),
-            }
-          );
-
-          const confirmData = await confirmRes.json();
-
-          if (confirmData.success) {
-            setBalance(confirmData.newBalance);
-            setDepositQr(null);
-            setDepositUuid(null);
-            setDepositAmount("");
-            alert("Depósito confirmado y balance actualizado");
-          }
-        }
-      } catch (err) {
-        console.error("Auto confirm error:", err);
-      }
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [depositUuid, wallet]);
-
-  function disconnectWallet() {
-    localStorage.clear();
-    window.location.href = "/";
-  }
-
-  return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#000",
-        color: "#fff",
-        padding: 40,
-      }}
-    >
-      <h1>Dashboard · XRP Earn</h1>
-
-      <p>
-        <strong>Wallet:</strong>
-        <br />
-        {wallet}
-      </p>
-
-      <hr />
-
-      <h2>{balance.toFixed(6)} XRP</h2>
-
-      <p style={{ color: "lime" }}>
-        Ganancia diaria estimada (8% APY): +{dailyGain.toFixed(6)} XRP
-      </p>
-
-      <hr />
-
-      <h3>Depositar XRP</h3>
-
-      <input
-        type="number"
-        placeholder="Cantidad XRP"
-        value={depositAmount}
-        onChange={(e) => setDepositAmount(e.target.value)}
-      />
-
-      <button onClick={depositXrp}>Depositar</button>
-
-      {depositQr && (
-        <div style={{ marginTop: 20 }}>
-          <p>Escanea con Xaman</p>
-          <img src={depositQr} width={260} />
-        </div>
-      )}
-
-      <hr />
-
-      <button onClick={disconnectWallet}>
-        Desconectar billetera
-      </button>
-    </main>
-  );
 }
